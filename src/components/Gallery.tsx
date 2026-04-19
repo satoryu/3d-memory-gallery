@@ -1,6 +1,16 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, Html, useGLTF } from '@react-three/drei';
+import { Box3, Vector3 } from 'three';
+
+// Glass case interior: 1m × 1.2m × 1m sitting on top of a 0.5m pedestal.
+// Per-axis fit uses Y's taller allowance (1.2m) so narrow-tall models can
+// actually use that headroom. 0.02m padding per side keeps the model from
+// visibly intersecting the glass.
+const PEDESTAL_TOP_Y = 0.5;
+const CASE_FIT_X = 0.96;
+const CASE_FIT_Y = 1.16;
+const CASE_FIT_Z = 0.96;
 
 export interface ExhibitSummary {
   slug: string;
@@ -37,8 +47,8 @@ function Showcase({ exhibit, position }: { exhibit: ExhibitSummary; position: [n
         />
       </mesh>
 
-      {/* Clickable label */}
-      <Html position={[0, 0, 0.7]} center transform distanceFactor={4}>
+      {/* Clickable label — above the case so it clears both the floor and the model */}
+      <Html position={[0, 1.9, 0]} center transform distanceFactor={4} occlude>
         <a
           href={exhibit.detailUrl}
           style={{
@@ -51,6 +61,7 @@ function Showcase({ exhibit, position }: { exhibit: ExhibitSummary; position: [n
             textDecoration: 'none',
             fontSize: '14px',
             whiteSpace: 'nowrap',
+            backfaceVisibility: 'hidden',
           }}
         >
           {exhibit.title}
@@ -62,7 +73,25 @@ function Showcase({ exhibit, position }: { exhibit: ExhibitSummary; position: [n
 
 function ExhibitModel({ url }: { url: string }) {
   const { scene } = useGLTF(url);
-  return <primitive object={scene.clone()} position={[0, 0.9, 0]} scale={0.3} />;
+
+  const { object, scale, position } = useMemo(() => {
+    const cloned = scene.clone(true);
+    const box = new Box3().setFromObject(cloned);
+    const size = box.getSize(new Vector3());
+    const center = box.getCenter(new Vector3());
+    const s = Math.min(CASE_FIT_X / size.x, CASE_FIT_Y / size.y, CASE_FIT_Z / size.z);
+    return {
+      object: cloned,
+      scale: s,
+      position: [
+        -center.x * s,
+        PEDESTAL_TOP_Y - box.min.y * s,
+        -center.z * s,
+      ] as [number, number, number],
+    };
+  }, [scene]);
+
+  return <primitive object={object} scale={scale} position={position} />;
 }
 
 export default function Gallery({ exhibits }: GalleryProps) {
