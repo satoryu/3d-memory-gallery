@@ -1,0 +1,28 @@
+---
+interface Props {
+  src: string;
+  alt: string;
+  poster?: string;
+}
+const { src, alt, poster } = Astro.props;
+---
+
+<model-viewer
+  src={src}
+  alt={alt}
+  poster={poster}
+  camera-controls
+  auto-rotate
+  ar
+  ar-modes="webxr scene-viewer quick-look"
+  shadow-intensity="1"
+  exposure="1"
+  style="width: 100%; height: 70vh; background: #0b0c10;"
+>
+  <div slot="progress-bar" />
+</model-viewer>
+
+<script>
+  // Load as a side-effect import so the <model-viewer> custom element is registered in the browser.
+  import('@google/model-viewer');
+</script>

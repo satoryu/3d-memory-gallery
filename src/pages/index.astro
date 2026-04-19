@@ -1,0 +1,19 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import Gallery, { type ExhibitSummary } from '../components/Gallery.tsx';
+
+const exhibits = await getCollection('exhibits');
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const items: ExhibitSummary[] = exhibits.map(({ id, data }) => ({
+  slug: id,
+  title: data.title,
+  modelUrl: `${base}/${data.model}`,
+  detailUrl: `${base}/exhibits/${id}/`,
+}));
+---
+
+<Base title="3D Memory Gallery">
+  <Gallery client:only="react" exhibits={items} />
+</Base>

@@ -1,0 +1,43 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import ModelViewer from '../../components/ModelViewer.astro';
+
+export async function getStaticPaths() {
+  const exhibits = await getCollection('exhibits');
+  return exhibits.map((exhibit) => ({
+    params: { slug: exhibit.id },
+    props: { exhibit },
+  }));
+}
+
+const { exhibit } = Astro.props;
+const { Content } = await render(exhibit);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const modelSrc = `${base}/${exhibit.data.model}`;
+const posterSrc = exhibit.data.poster ? `${base}/${exhibit.data.poster}` : undefined;
+
+const capturedAt = exhibit.data.capturedAt.toLocaleDateString('ja-JP', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+---
+
+<Base title={`${exhibit.data.title} | 3D Memory Gallery`}>
+  <main style="max-width: 960px; margin: 0 auto; padding: 2rem 1rem;">
+    <p><a href={`${base}/`}>← 一覧に戻る</a></p>
+    <h1>{exhibit.data.title}</h1>
+    <ModelViewer src={modelSrc} alt={exhibit.data.title} poster={posterSrc} />
+    <dl style="display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1rem; margin-top: 1.5rem;">
+      <dt style="color: var(--muted);">撮影日</dt>
+      <dd style="margin: 0;">{capturedAt}</dd>
+      <dt style="color: var(--muted);">イベント</dt>
+      <dd style="margin: 0;">{exhibit.data.eventName}</dd>
+    </dl>
+    <section style="margin-top: 1.5rem; line-height: 1.8;">
+      <p>{exhibit.data.description}</p>
+      <Content />
+    </section>
+  </main>
+</Base>
