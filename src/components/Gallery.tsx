@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, Html, useGLTF } from '@react-three/drei';
 
@@ -22,8 +22,7 @@ function Showcase({ exhibit, position }: { exhibit: ExhibitSummary; position: [n
         <meshStandardMaterial color="#2a2a2a" roughness={0.8} />
       </mesh>
 
-      {/* Model placeholder — replaced by <ExhibitModel /> when a GLB exists */}
-      <ExhibitModel url={exhibit.modelUrl} fallbackPosition={[0, 0.9, 0]} />
+      <ExhibitModel url={exhibit.modelUrl} />
 
       {/* Glass case */}
       <mesh position={[0, 1.1, 0]}>
@@ -61,25 +60,20 @@ function Showcase({ exhibit, position }: { exhibit: ExhibitSummary; position: [n
   );
 }
 
-function ExhibitModel({ url, fallbackPosition }: { url: string; fallbackPosition: [number, number, number] }) {
-  // Graceful fallback: if the GLB is missing, show a cube.
-  // useGLTF suspends; wrap call-site in <Suspense>.
-  try {
-    const gltf = useGLTF(url);
-    return <primitive object={gltf.scene.clone()} position={fallbackPosition} scale={0.3} />;
-  } catch {
-    return (
-      <mesh position={fallbackPosition} castShadow>
-        <boxGeometry args={[0.4, 0.4, 0.4]} />
-        <meshStandardMaterial color="#8888ff" />
-      </mesh>
-    );
-  }
+function ExhibitModel({ url }: { url: string }) {
+  const { scene } = useGLTF(url);
+  return <primitive object={scene.clone()} position={[0, 0.9, 0]} scale={0.3} />;
 }
 
 export default function Gallery({ exhibits }: GalleryProps) {
   const cols = Math.ceil(Math.sqrt(Math.max(exhibits.length, 1)));
   const spacing = 2.5;
+
+  // Prefetch all GLBs before rendering the Canvas so navigating back lands
+  // on cached models instead of hitting suspension again.
+  useEffect(() => {
+    exhibits.forEach((e) => useGLTF.preload(e.modelUrl));
+  }, [exhibits]);
 
   return (
     <div style={{ width: '100%', height: '100vh' }}>
