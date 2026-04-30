@@ -8,7 +8,7 @@ const exhibits = defineCollection({
     capturedAt: z.coerce.date(),
     eventName: z.string(),
     description: z.string(),
-    // Path under /public, e.g. "models/my-exhibit.glb"
+    // Path under /public, e.g. "models/my-exhibit.glb" or "models/my-exhibit/scene.gltf"
     model: z.string(),
     // Optional poster image shown before the 3D viewer loads
     poster: z.string().optional(),

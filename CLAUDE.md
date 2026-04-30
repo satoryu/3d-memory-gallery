@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project purpose
 
-A personal, museum-style gallery for 3D models (GLB files) captured via smartphone photogrammetry at events the owner attended. Static site published via GitHub Pages.
+A personal, museum-style gallery for 3D models (GLB/GLTF files) captured via smartphone photogrammetry at events the owner attended. Static site published via GitHub Pages.
 
 ## Tech stack essentials
 
@@ -36,7 +36,9 @@ The site is reachable at both `https://satoryu.github.io/3d-memory-gallery/` and
 
 This is the whole content loop — no code changes needed:
 
-1. Drop the GLB under `public/models/` (keep filenames URL-safe)
+1. Place the model under `public/models/`:
+   - **GLB** (single file): copy to `public/models/<slug>.glb`
+   - **GLTF** (multi-file): copy the entire export directory to `public/models/<slug>/` — the `.gltf`, `.bin`, and texture files must keep their relative paths
 2. Create `src/content/exhibits/<slug>.md` with frontmatter matching the schema in `src/content.config.ts` (title, capturedAt, eventName, description, model, optional poster)
 3. `git push` → GitHub Actions auto-deploys in ~40s
 
@@ -60,6 +62,6 @@ The detail route `/exhibits/[slug]/` is generated statically via `getStaticPaths
 
 `.github/workflows/deploy.yml` builds with `withastro/action@v3` and publishes via `actions/deploy-pages@v4` on push to `main`. Pages source is set to "GitHub Actions" at the repo level (one-time setting, already done). The `pages` concurrency group ensures in-flight deploys finish rather than being cancelled.
 
-## GLB size considerations (future-relevant)
+## Model size considerations (future-relevant)
 
-GitHub Pages has a 100MB per-file limit and ~1GB soft repo limit. Raw photogrammetry GLBs can blow past this quickly. When files start pushing limits, run them through `gltf-transform` (Draco + Meshopt) before committing — typically 70–90% reduction with negligible visual loss. If the repo itself gets heavy, move GLBs to external storage (Cloudflare R2, etc.) and keep only metadata in the repo.
+GitHub Pages has a 100MB per-file limit and ~1GB soft repo limit. Raw photogrammetry models can blow past this quickly. When files start pushing limits, run them through `gltf-transform` (Draco + Meshopt) before committing — typically 70–90% reduction with negligible visual loss. For GLTF, the total size includes all referenced `.bin` and texture files, not just the `.gltf` JSON. If the repo itself gets heavy, move models to external storage (Cloudflare R2, etc.) and keep only metadata in the repo.
