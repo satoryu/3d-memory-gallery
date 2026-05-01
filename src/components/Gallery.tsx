@@ -106,7 +106,7 @@ export default function Gallery({ exhibits }: GalleryProps) {
 
   return (
     <div style={{ width: '100%', height: '100vh' }}>
-      <Canvas shadows camera={{ position: [0, 3, 6], fov: 50 }}>
+      <Canvas shadows frameloop="always" camera={{ position: [0, 3, 6], fov: 50 }}>
         <color attach="background" args={['#0b0c10']} />
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
