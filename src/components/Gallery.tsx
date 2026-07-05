@@ -1,6 +1,6 @@
-import { Suspense, useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, Html, Lightformer, useGLTF, MeshReflectorMaterial } from '@react-three/drei';
+import { OrbitControls, Environment, Html, Lightformer, useGLTF, useProgress, MeshReflectorMaterial } from '@react-three/drei';
 import { Box3, Object3D, Vector3 } from 'three';
 
 // Glass case interior: 1m × 1.2m × 1m sitting on top of a 0.5m pedestal.
@@ -309,6 +309,83 @@ function MuseumRoom({ width, depth }: { width: number; depth: number }) {
   );
 }
 
+// Full-screen overlay shown while GLB assets are downloading. useProgress
+// reads drei's shared loading store, so this works outside the Canvas.
+// Stays mounted through a short fade-out, and also covers the initial
+// mount so there's no flash of an empty room before loading kicks in.
+function LoadingOverlay() {
+  const { active, progress } = useProgress();
+  const [mounted, setMounted] = useState(true);
+
+  useEffect(() => {
+    if (active) {
+      setMounted(true);
+      return;
+    }
+    // Small grace period: lets the fade-out play, and auto-dismisses when
+    // every model is already cached (loading never activates).
+    const timer = setTimeout(() => setMounted(false), 700);
+    return () => clearTimeout(timer);
+  }, [active]);
+
+  if (!mounted) return null;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 10,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '18px',
+        background: '#0e0c0a',
+        color: '#d8c9ae',
+        fontFamily: 'Georgia, "Times New Roman", serif',
+        opacity: active ? 1 : 0,
+        transition: 'opacity 0.6s ease',
+        pointerEvents: active ? 'auto' : 'none',
+      }}
+    >
+      <style>{'@keyframes gallery-spin { to { transform: rotate(360deg); } }'}</style>
+      <div
+        style={{
+          width: '52px',
+          height: '52px',
+          borderRadius: '50%',
+          border: `3px solid rgba(156, 124, 70, 0.25)`,
+          borderTopColor: BRASS,
+          animation: 'gallery-spin 1s linear infinite',
+        }}
+      />
+      <div style={{ fontSize: '15px', letterSpacing: '0.2em' }}>展示を読み込んでいます…</div>
+      <div
+        style={{
+          width: '220px',
+          height: '3px',
+          background: 'rgba(156, 124, 70, 0.2)',
+          borderRadius: '2px',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: `${progress}%`,
+            height: '100%',
+            background: BRASS,
+            transition: 'width 0.3s ease',
+          }}
+        />
+      </div>
+      <div style={{ fontSize: '12px', letterSpacing: '0.15em', color: '#8a7d63' }}>
+        {Math.round(progress)}%
+      </div>
+    </div>
+  );
+}
+
 export default function Gallery({ exhibits }: GalleryProps) {
   const count = Math.max(exhibits.length, 1);
   const cols = Math.ceil(Math.sqrt(count));
@@ -323,7 +400,8 @@ export default function Gallery({ exhibits }: GalleryProps) {
   }, [exhibits]);
 
   return (
-    <div style={{ width: '100%', height: '100vh' }}>
+    <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
+      <LoadingOverlay />
       <Canvas
         shadows
         frameloop="always"
