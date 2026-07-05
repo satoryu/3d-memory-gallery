@@ -19,10 +19,99 @@ const { src, alt, poster } = Astro.props;
   exposure="1"
   style="width: 100%; height: 70vh; background: #0b0c10;"
 >
-  <div slot="progress-bar" />
+  <div slot="progress-bar"></div>
+  <div class="loading-overlay" data-loading-overlay>
+    <div class="loading-spinner"></div>
+    <div class="loading-label">モデルを読み込んでいます…</div>
+    <div class="loading-bar">
+      <div class="loading-bar-fill" data-bar-fill></div>
+    </div>
+    <div class="loading-pct" data-pct>0%</div>
+  </div>
 </model-viewer>
 
+<style>
+  .loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: rgba(11, 12, 16, 0.85);
+    color: #d8c9ae;
+    font-family: Georgia, 'Times New Roman', serif;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+  }
+
+  .loading-overlay.is-hidden {
+    opacity: 0;
+  }
+
+  .loading-spinner {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 3px solid rgba(156, 124, 70, 0.25);
+    border-top-color: #9c7c46;
+    animation: mv-spin 1s linear infinite;
+  }
+
+  .loading-label {
+    font-size: 14px;
+    letter-spacing: 0.2em;
+  }
+
+  .loading-bar {
+    width: 200px;
+    height: 3px;
+    background: rgba(156, 124, 70, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .loading-bar-fill {
+    width: 0%;
+    height: 100%;
+    background: #9c7c46;
+    transition: width 0.3s ease;
+  }
+
+  .loading-pct {
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    color: #8a7d63;
+  }
+
+  @keyframes mv-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+</style>
+
 <script>
+  // Wire up the custom loading overlay before the custom element upgrades,
+  // so no progress events are missed once loading starts.
+  document.querySelectorAll('model-viewer').forEach((viewer) => {
+    const overlay = viewer.querySelector<HTMLElement>('[data-loading-overlay]');
+    if (!overlay) return;
+    const fill = overlay.querySelector<HTMLElement>('[data-bar-fill]');
+    const pct = overlay.querySelector<HTMLElement>('[data-pct]');
+
+    viewer.addEventListener('progress', (event) => {
+      const total = (event as unknown as CustomEvent<{ totalProgress: number }>).detail.totalProgress;
+      if (fill) fill.style.width = `${total * 100}%`;
+      if (pct) pct.textContent = `${Math.round(total * 100)}%`;
+    });
+
+    const hide = () => overlay.classList.add('is-hidden');
+    viewer.addEventListener('load', hide);
+    viewer.addEventListener('error', hide);
+  });
+
   // Load as a side-effect import so the <model-viewer> custom element is registered in the browser.
   import('@google/model-viewer');
 </script>
