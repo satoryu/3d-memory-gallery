@@ -50,6 +50,8 @@
   padding: 10px 14px; font-size: 12px; list-style: none;
 }
 .museum-toolbar summary { cursor: pointer; }
+.museum-toolbar button:disabled { opacity: 0.6; cursor: not-allowed; }
+.museum-vr-info { position: absolute; top: 79px; right: 30px; max-width: 360px; padding: 7px 10px; background: #f6f6efe8; border-radius: 3px; font-size: 10px; line-height: 1.6; }
 .museum-toolbar summary::-webkit-details-marker { display: none; }
 .museum-catalog { position: absolute; top: 48px; right: 0; width: min(310px, calc(100vw - 40px)); max-height: 55vh; overflow: auto; background: #f6f6ef; border: 1px solid #c7cbbc; box-shadow: 0 8px 28px #26301d18; }
 .museum-catalog a { display: flex; gap: 18px; padding: 18px; border-bottom: 1px solid #dddfd4; font-size: 13px; text-decoration: none; }
@@ -84,13 +86,14 @@
   .museum-header h1 { font-size: 19px; }
   .museum-eyebrow { font-size: 8px; letter-spacing: 0.1em; }
   .museum-toolbar { top: 91px; right: 20px; }
+  .museum-vr-info { top: 137px; right: 20px; left: 20px; max-width: none; }
   .museum-toolbar button, .museum-toolbar summary { padding: 9px 11px; }
   .museum-footer { left: 16px; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); }
   .museum-status { display: none; }
   .museum-help { padding: 12px; }
   .museum-keys { gap: 8px 12px; font-size: 10px; }
   .museum-entry { left: 20px; bottom: 130px; padding: 20px; }
-  .museum-nearby { top: 147px; }
+  .museum-nearby { top: 202px; }
 }
 @media (max-height: 540px) {
   .museum-entry { bottom: 100px; padding: 12px 20px; }
@@ -98,6 +101,7 @@
   .museum-entry p, .museum-entry small { display: none; }
   .museum-header { top: 12px; }
   .museum-toolbar { top: 16px; }
+  .museum-vr-info { top: 65px; left: auto; max-width: 320px; }
 }
 /* Include large landscape tablets through their primary touch pointer. */
 @media (max-width: 1024px), (pointer: coarse) {

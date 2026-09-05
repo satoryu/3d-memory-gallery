@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { Html } from '@react-three/drei';
 import { DataTexture, RepeatWrapping, RGBAFormat, SRGBColorSpace } from 'three';
+import SceneLabel from './SceneLabel';
 
 export const WALL_HEIGHT = 3.6;
 
@@ -52,7 +53,7 @@ export function MuseumBench({ x }: { x: number }) {
   );
 }
 
-export default function MuseumRoom({ width, depth }: { width: number; depth: number }) {
+export default function MuseumRoom({ width, depth, immersive = false }: { width: number; depth: number; immersive?: boolean }) {
   const oak = useOakFloor(width, depth);
   const halfW = width / 2;
   const halfD = depth / 2;
@@ -120,7 +121,14 @@ export default function MuseumRoom({ width, depth }: { width: number; depth: num
       <MuseumBench x={-halfW + 1} />
       <MuseumBench x={halfW - 1} />
 
-      <Html position={[0, 2.05, -halfD + 0.025]} transform distanceFactor={2} center occlude className="museum-sign-anchor">
+      {immersive ? (
+        <group position={[0, 2.05, -halfD + 0.025]}>
+          <SceneLabel width={3.1} height={1.65} background="#ecebe5" fontSize={68} lines={[
+            '3D MEMORY GALLERY · COLLECTION', '記憶のかたち', 'The shape of memories',
+            '出会った風景、心に残ったもの。', '日々の記憶を、立体でたどる小さな展示室。',
+          ]} />
+        </group>
+      ) : <Html position={[0, 2.05, -halfD + 0.025]} transform distanceFactor={2} center occlude className="museum-sign-anchor">
         <div className="museum-wall-title" aria-hidden="true">
           <div className="museum-wall-eyebrow">3D MEMORY GALLERY · COLLECTION</div>
           <div className="museum-wall-heading">記憶のかたち</div>
@@ -129,7 +137,7 @@ export default function MuseumRoom({ width, depth }: { width: number; depth: num
           <p>出会った風景、心に残ったもの。<br />日々の記憶を、立体でたどる小さな展示室。</p>
           <div className="museum-wall-footnote">収蔵展示　／　フォトグラメトリによる記録</div>
         </div>
-      </Html>
+      </Html>}
 
       {/* Flush entrance doors and the familiar green emergency-exit sign. */}
       <group position={[0, 0, halfD - 0.035]} rotation={[0, Math.PI, 0]}>
@@ -149,9 +157,13 @@ export default function MuseumRoom({ width, depth }: { width: number; depth: num
             </mesh>
           </group>
         ))}
-        <Html position={[0, 2.6, 0.06]} transform center distanceFactor={1} occlude className="museum-sign-anchor">
+        {immersive ? (
+          <group position={[0, 2.6, 0.06]}>
+            <SceneLabel width={0.65} height={0.18} background="#28794d" color="#ffffff" fontSize={100} lines={['← 非常口 EXIT']} />
+          </group>
+        ) : <Html position={[0, 2.6, 0.06]} transform center distanceFactor={1} occlude className="museum-sign-anchor">
           <div className="museum-exit-sign" aria-hidden="true">←　非常口 <small>EXIT</small></div>
-        </Html>
+        </Html>}
       </group>
     </group>
   );

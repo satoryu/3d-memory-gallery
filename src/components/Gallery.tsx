@@ -1,10 +1,14 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { XR } from '@react-three/xr';
 import { Environment, Html, Lightformer, useGLTF, useProgress } from '@react-three/drei';
 import { Box3, Object3D, Vector3 } from 'three';
 import MuseumRoom, { WALL_HEIGHT } from './MuseumRoom';
 import WalkthroughControls, { type WalkInput } from './WalkthroughControls';
 import { createGalleryLayout, EYE_HEIGHT } from './galleryNavigation';
+import SceneLabel from './SceneLabel';
+import VRGallery from './VRGallery';
+import { useVRSession } from './useVRSession';
 import './Gallery.css';
 
 // Glass case interior: 1m × 1.2m × 1m sitting on top of a 0.7m pedestal.
@@ -118,7 +122,7 @@ function CaseSpotlight({ castShadow }: { castShadow: boolean }) {
 }
 
 // Angled caption stand in front of the pedestal, styled like a museum placard.
-function Placard({ exhibit, number }: { exhibit: ExhibitSummary; number: number }) {
+function Placard({ exhibit, number, immersive }: { exhibit: ExhibitSummary; number: number; immersive: boolean }) {
   return (
     <group position={[0, 0, 1]}>
       <mesh position={[0, 0.015, 0]} receiveShadow>
@@ -134,7 +138,14 @@ function Placard({ exhibit, number }: { exhibit: ExhibitSummary; number: number 
           <boxGeometry args={[0.62, 0.38, 0.025]} />
           <meshStandardMaterial color={DARK_TRIM} metalness={0.5} roughness={0.4} />
         </mesh>
-        <Html position={[0, 0, 0.014]} center transform distanceFactor={1} occlude>
+        {immersive ? (
+          <group position={[0, 0, 0.014]}>
+            <SceneLabel width={0.59} height={0.35} lines={[
+              `${String(number).padStart(2, '0')}　収蔵作品`, exhibit.title, exhibit.eventName,
+              `${exhibit.capturedAt} 撮影 ｜ 3D記録`,
+            ]} fontSize={62} />
+          </group>
+        ) : <Html position={[0, 0, 0.014]} center transform distanceFactor={1} occlude>
           <a href={exhibit.detailUrl} className="museum-placard" tabIndex={-1}>
             <span className="museum-placard-number">{String(number).padStart(2, '0')}　収蔵作品</span>
             <strong>{exhibit.title}</strong>
@@ -142,13 +153,13 @@ function Placard({ exhibit, number }: { exhibit: ExhibitSummary; number: number 
             <span>{exhibit.capturedAt} 撮影 ｜ 3D記録</span>
             <span className="museum-placard-link">作品を鑑賞する ↗</span>
           </a>
-        </Html>
+        </Html>}
       </group>
     </group>
   );
 }
 
-function Showcase({ exhibit, position, number }: { exhibit: ExhibitSummary; position: [number, number, number]; number: number }) {
+function Showcase({ exhibit, position, number, immersive }: { exhibit: ExhibitSummary; position: [number, number, number]; number: number; immersive: boolean }) {
   return (
     <group position={position}>
       {/* Pedestal: base plinth, stone body, top cap */}
@@ -181,8 +192,8 @@ function Showcase({ exhibit, position, number }: { exhibit: ExhibitSummary; posi
         />
       </mesh>
       <CaseFrame />
-      <CaseSpotlight castShadow={number <= 6} />
-      <Placard exhibit={exhibit} number={number} />
+      <CaseSpotlight castShadow={!immersive && number <= 6} />
+      <Placard exhibit={exhibit} number={number} immersive={immersive} />
     </group>
   );
 }
@@ -292,12 +303,20 @@ function LoadingOverlay() {
 }
 
 export default function Gallery({ exhibits }: GalleryProps) {
+  const vr = useVRSession();
+  const { active: loadingModels } = useProgress();
+  const [sceneReady, setSceneReady] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(false);
   const [nearby, setNearby] = useState(-1);
   const layout = useMemo(() => createGalleryLayout(exhibits.length), [exhibits.length]);
   const input = useMemo<WalkInput>(() => ({ keys: new Set(), reset: true }), []);
   const nearbyExhibit = exhibits[nearby];
+  useEffect(() => {
+    input.keys.clear();
+    setActive(false);
+    setNearby(-1);
+  }, [vr.immersive, input]);
   const start = () => { root.current?.focus({ preventScroll: true }); setActive(true); };
   const returnToEntrance = () => { input.keys.clear(); input.reset = true; start(); };
   const openExhibit = useCallback((index: number) => {
@@ -320,7 +339,7 @@ export default function Gallery({ exhibits }: GalleryProps) {
       aria-label="記憶のかたち・3D展示室"
       aria-describedby="museum-help"
       onKeyDown={(event) => {
-        if (!active && event.target === event.currentTarget && event.code === 'Enter') {
+        if (!vr.immersive && !active && event.target === event.currentTarget && event.code === 'Enter') {
           event.preventDefault(); start();
         }
       }}
@@ -331,9 +350,11 @@ export default function Gallery({ exhibits }: GalleryProps) {
         shadows
         dpr={[1, 1.5]}
         frameloop="always"
+        onCreated={() => setSceneReady(true)}
         camera={{ position: [layout.entrance.x, EYE_HEIGHT, layout.entrance.z], fov: 60, near: 0.05, far: Math.max(100, layout.depth * 2) }}
         fallback={<p>3D表示にはWebGLが必要です。「作品目録」から各作品をご覧ください。</p>}
       >
+        <XR store={vr.store}>
         <color attach="background" args={['#ecebe5']} />
         <ambientLight intensity={0.65} color="#fff7ea" />
         <hemisphereLight args={['#fffaf0', '#a2957c', 1.1]} />
@@ -358,11 +379,11 @@ export default function Gallery({ exhibits }: GalleryProps) {
         </Environment>
         <Suspense fallback={null}>
           {exhibits.map((exhibit, i) => (
-            <Showcase key={exhibit.slug} exhibit={exhibit} position={layout.positions[i]} number={i + 1} />
+            <Showcase key={exhibit.slug} exhibit={exhibit} position={layout.positions[i]} number={i + 1} immersive={vr.immersive} />
           ))}
         </Suspense>
-        <MuseumRoom width={layout.width} depth={layout.depth} />
-        <WalkthroughControls
+        <MuseumRoom width={layout.width} depth={layout.depth} immersive={vr.immersive} />
+        {vr.immersive ? <VRGallery layout={layout} onExit={() => void vr.exit()} /> : <WalkthroughControls
           root={root}
           input={input}
           layout={layout}
@@ -370,7 +391,8 @@ export default function Gallery({ exhibits }: GalleryProps) {
           onActiveChange={setActive}
           onNearbyChange={setNearby}
           onOpenExhibit={openExhibit}
-        />
+        />}
+        </XR>
       </Canvas>
       <div className="museum-hud">
         <header className="museum-header">
@@ -381,7 +403,13 @@ export default function Gallery({ exhibits }: GalleryProps) {
           </div>
         </header>
         <nav className="museum-toolbar" aria-label="展示室メニュー">
-          <button type="button" onClick={returnToEntrance}>入口に戻る</button>
+          <button
+            type="button"
+            disabled={vr.busy || (!vr.immersive && (vr.support !== 'supported' || !sceneReady || loadingModels))}
+            onClick={() => void (vr.immersive ? vr.exit() : vr.enter())}
+            aria-describedby="museum-vr-info"
+          >{vr.busy ? 'VR切り替え中…' : vr.immersive ? 'VRを終了' : vr.support === 'checking' ? 'VR対応を確認中…' : 'VRで鑑賞'}</button>
+          <button type="button" onClick={returnToEntrance} disabled={vr.immersive}>入口に戻る</button>
           <details>
             <summary>作品目録 <span aria-hidden="true">＋</span></summary>
             <div className="museum-catalog">
@@ -394,7 +422,14 @@ export default function Gallery({ exhibits }: GalleryProps) {
             </div>
           </details>
         </nav>
-        {!active && (
+        <div className="museum-vr-info" id="museum-vr-info" role="status">
+          {vr.error || (vr.immersive ? 'VR表示中。終了はヘッドセット内のパネル、またはシステムメニューから。' :
+            vr.support === 'supported' ? 'VR対応：床の丸いマークを指して移動。周囲の安全を確保して開始してください。' :
+            vr.support === 'insecure' ? 'VRにはHTTPS接続が必要です。公開サイトをヘッドセットで開いてください。' :
+            vr.support === 'error' ? 'VR対応を確認できませんでした。デバイス接続とブラウザーの権限設定をご確認ください。' :
+            vr.support === 'unsupported' ? 'VRはWebXR対応ヘッドセット・ブラウザーで利用できます。' : 'VRデバイスの対応状況を確認しています。')}
+        </div>
+        {!active && !vr.immersive && (
           <section className="museum-entry" aria-label="ウォークスルーの開始">
             <div className="museum-eyebrow">WELCOME TO THE GALLERY</div>
             <h2>歩いて、記憶をたどる。</h2>
@@ -403,13 +438,13 @@ export default function Gallery({ exhibits }: GalleryProps) {
             <small className="museum-keyboard-hint">キーボードで移動できます。Escで一時停止。</small>
           </section>
         )}
-        {active && <div className="museum-crosshair" aria-hidden="true" />}
+        {active && !vr.immersive && <div className="museum-crosshair" aria-hidden="true" />}
         <div className="museum-nearby" aria-live="polite">
-          {active && nearbyExhibit && (
+          {active && !vr.immersive && nearbyExhibit && (
             <a href={nearbyExhibit.detailUrl}><kbd className="museum-keyboard-hint">Enter</kbd> {nearbyExhibit.title} を鑑賞する ↗</a>
           )}
         </div>
-        {active && (
+        {active && !vr.immersive && (
           <div className="museum-touch" role="group" aria-label="タッチで館内を移動">
             {[
               ['ArrowLeft', '↶', '左を向く'], ['KeyW', '↑', '前へ歩く'], ['ArrowRight', '↷', '右を向く'],
