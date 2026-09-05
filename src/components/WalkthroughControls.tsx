@@ -43,6 +43,7 @@ export default function WalkthroughControls({ root, input, layout, active, onAct
     };
     const pause = () => { clear(); onActiveChange(false); };
     const keydown = (event: KeyboardEvent) => {
+      if (gl.xr.isPresenting) return;
       // Never steal browser shortcuts, IME input or keys from links/buttons.
       if (event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
       if (event.code === 'Escape') { pause(); return; }
@@ -65,6 +66,7 @@ export default function WalkthroughControls({ root, input, layout, active, onAct
     };
     const visibility = () => { if (document.hidden) pause(); };
     const pointerdown = (event: PointerEvent) => {
+      if (gl.xr.isPresenting) return;
       if (event.button !== 0) return;
       element.focus({ preventScroll: true });
       onActiveChange(true);
@@ -111,6 +113,9 @@ export default function WalkthroughControls({ root, input, layout, active, onAct
   }, [gl, input, root, onActiveChange, onOpenExhibit]);
 
   useFrame((_, delta) => {
+    // Guard the transition frame as well as unmounting during immersion:
+    // headset tracking alone owns the XR camera's position and rotation.
+    if (gl.xr.isPresenting) return;
     if (input.reset) {
       camera.position.set(layout.entrance.x, EYE_HEIGHT, layout.entrance.z);
       orientation.current = { yaw: 0, pitch: -0.08 };
