@@ -1,26 +1,28 @@
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, Html, Lightformer, useGLTF, useProgress, MeshReflectorMaterial } from '@react-three/drei';
+import { Environment, Html, Lightformer, useGLTF, useProgress } from '@react-three/drei';
 import { Box3, Object3D, Vector3 } from 'three';
+import MuseumRoom, { WALL_HEIGHT } from './MuseumRoom';
+import WalkthroughControls, { type WalkInput } from './WalkthroughControls';
+import { createGalleryLayout, EYE_HEIGHT } from './galleryNavigation';
+import './Gallery.css';
 
-// Glass case interior: 1m × 1.2m × 1m sitting on top of a 0.5m pedestal.
+// Glass case interior: 1m × 1.2m × 1m sitting on top of a 0.7m pedestal.
 // Per-axis fit uses Y's taller allowance (1.2m) so narrow-tall models can
 // actually use that headroom. 0.02m padding per side keeps the model from
 // visibly intersecting the glass.
-const PEDESTAL_TOP_Y = 0.5;
+const PEDESTAL_TOP_Y = 0.7;
 const CASE_FIT_X = 0.96;
 const CASE_FIT_Y = 1.16;
 const CASE_FIT_Z = 0.96;
 
 const CASE_H = 1.2;
 const CASE_CENTER_Y = PEDESTAL_TOP_Y + CASE_H / 2;
-const SPACING = 3.2;
-const WALL_H = 3.8;
+const WALL_H = WALL_HEIGHT;
 
 // Shared palette for the museum hall
-const BRASS = '#9c7c46';
-const DARK_TRIM = '#241f19';
-const WALL = '#c9bfae';
+const BRASS = '#747a72';
+const DARK_TRIM = '#383e39';
 
 interface BrassProps {
   position: [number, number, number];
@@ -41,15 +43,17 @@ export interface ExhibitSummary {
   title: string;
   modelUrl: string;
   detailUrl: string;
+  eventName: string;
+  capturedAt: string;
 }
 
 interface GalleryProps {
   exhibits: ExhibitSummary[];
 }
 
-// Brass edge frame around the 1 × 1.2 × 1 glass volume, plus a solid lid.
+// Slim, neutral anodised-metal joints around low-iron museum glazing.
 function CaseFrame() {
-  const t = 0.035;
+  const t = 0.014;
   const yTop = PEDESTAL_TOP_Y + CASE_H - t / 2;
   const yBottom = PEDESTAL_TOP_Y + t / 2;
   return (
@@ -69,35 +73,43 @@ function CaseFrame() {
       ))}
       {/* Lid */}
       <mesh position={[0, PEDESTAL_TOP_Y + CASE_H + 0.02, 0]} castShadow>
-        <boxGeometry args={[1.08, 0.04, 1.08]} />
-        <meshStandardMaterial color={DARK_TRIM} metalness={0.5} roughness={0.45} />
+        <boxGeometry args={[1.04, 0.025, 1.04]} />
+        <meshStandardMaterial color={BRASS} metalness={0.65} roughness={0.35} />
       </mesh>
     </group>
   );
 }
 
 // Ceiling-mounted spotlight aimed at the display case, with a visible fixture.
-function CaseSpotlight() {
+function CaseSpotlight({ castShadow }: { castShadow: boolean }) {
   const target = useMemo(() => new Object3D(), []);
   return (
     <group>
       <primitive object={target} position={[0, PEDESTAL_TOP_Y + 0.4, 0]} />
       <spotLight
-        position={[0, WALL_H - 0.2, 0]}
+        position={[0, WALL_H - 0.2, 0.35]}
         target={target}
-        angle={0.5}
+        angle={0.55}
         penumbra={0.7}
-        intensity={150}
-        distance={12}
-        decay={1.6}
-        color="#ffe9c8"
+        intensity={32}
+        distance={7}
+        decay={2}
+        color="#fff0d7"
+        castShadow={castShadow}
+        shadow-mapSize={[512, 512]}
+        shadow-bias={-0.0005}
+        shadow-normalBias={0.025}
       />
       {/* Fixture housing */}
-      <mesh position={[0, WALL_H - 0.08, 0]}>
+      <mesh position={[0, WALL_H - 0.04, 0]}>
+        <boxGeometry args={[0.045, 0.04, 1.35]} />
+        <meshStandardMaterial color={DARK_TRIM} />
+      </mesh>
+      <mesh position={[0, WALL_H - 0.13, 0.35]}>
         <cylinderGeometry args={[0.11, 0.15, 0.16, 20]} />
         <meshStandardMaterial color="#1c1915" roughness={0.6} metalness={0.4} />
       </mesh>
-      <mesh position={[0, WALL_H - 0.165, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0, WALL_H - 0.215, 0.35]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.09, 20]} />
         <meshBasicMaterial color="#ffe9c4" toneMapped={false} />
       </mesh>
@@ -106,42 +118,29 @@ function CaseSpotlight() {
 }
 
 // Angled caption stand in front of the pedestal, styled like a museum placard.
-function Placard({ exhibit }: { exhibit: ExhibitSummary }) {
+function Placard({ exhibit, number }: { exhibit: ExhibitSummary; number: number }) {
   return (
-    <group position={[0, 0, 0.95]}>
-      <mesh position={[0, 0.31, 0]} castShadow>
-        <cylinderGeometry args={[0.022, 0.04, 0.62, 12]} />
+    <group position={[0, 0, 1]}>
+      <mesh position={[0, 0.015, 0]} receiveShadow>
+        <boxGeometry args={[0.45, 0.03, 0.32]} />
+        <meshStandardMaterial color={DARK_TRIM} roughness={0.7} />
+      </mesh>
+      <mesh position={[0, 0.43, 0]} castShadow>
+        <cylinderGeometry args={[0.018, 0.018, 0.86, 12]} />
         <meshStandardMaterial color="#33302b" metalness={0.7} roughness={0.35} />
       </mesh>
-      <group position={[0, 0.64, 0]} rotation={[-0.5, 0, 0]}>
+      <group position={[0, 0.89, 0]} rotation={[-0.65, 0, 0]}>
         <mesh castShadow>
-          <boxGeometry args={[0.56, 0.36, 0.025]} />
+          <boxGeometry args={[0.62, 0.38, 0.025]} />
           <meshStandardMaterial color={DARK_TRIM} metalness={0.5} roughness={0.4} />
         </mesh>
         <Html position={[0, 0, 0.014]} center transform distanceFactor={1} occlude>
-          <a
-            href={exhibit.detailUrl}
-            style={{
-              display: 'block',
-              width: '150px',
-              padding: '10px 12px',
-              background: 'linear-gradient(#faf6ec, #eee5d2)',
-              color: '#2a251d',
-              border: '1px solid #b9a97f',
-              borderRadius: '2px',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.45)',
-              textDecoration: 'none',
-              textAlign: 'center',
-              fontFamily: 'Georgia, "Times New Roman", serif',
-              backfaceVisibility: 'hidden',
-            }}
-          >
-            <span style={{ display: 'block', fontSize: '13px', fontWeight: 700, letterSpacing: '0.02em' }}>
-              {exhibit.title}
-            </span>
-            <span style={{ display: 'block', fontSize: '9px', marginTop: '5px', color: '#8a7d63', letterSpacing: '0.1em' }}>
-              詳しく見る →
-            </span>
+          <a href={exhibit.detailUrl} className="museum-placard" tabIndex={-1}>
+            <span className="museum-placard-number">{String(number).padStart(2, '0')}　収蔵作品</span>
+            <strong>{exhibit.title}</strong>
+            <span>{exhibit.eventName}</span>
+            <span>{exhibit.capturedAt} 撮影 ｜ 3D記録</span>
+            <span className="museum-placard-link">作品を鑑賞する ↗</span>
           </a>
         </Html>
       </group>
@@ -149,41 +148,41 @@ function Placard({ exhibit }: { exhibit: ExhibitSummary }) {
   );
 }
 
-function Showcase({ exhibit, position }: { exhibit: ExhibitSummary; position: [number, number, number] }) {
+function Showcase({ exhibit, position, number }: { exhibit: ExhibitSummary; position: [number, number, number]; number: number }) {
   return (
     <group position={position}>
       {/* Pedestal: base plinth, stone body, top cap */}
       <mesh position={[0, 0.03, 0]} castShadow receiveShadow>
-        <boxGeometry args={[1.38, 0.06, 1.38]} />
-        <meshStandardMaterial color="#1b1815" roughness={0.9} />
+        <boxGeometry args={[1.08, 0.06, 1.08]} />
+        <meshStandardMaterial color="#4a4e48" roughness={0.9} />
       </mesh>
-      <mesh position={[0, 0.26, 0]} castShadow receiveShadow>
-        <boxGeometry args={[1.16, 0.42, 1.16]} />
-        <meshStandardMaterial color="#302b25" roughness={0.5} metalness={0.1} />
+      <mesh position={[0, 0.36, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.2, 0.6, 1.2]} />
+        <meshStandardMaterial color="#e0dfd7" roughness={0.82} />
       </mesh>
-      <mesh position={[0, 0.48, 0]} castShadow receiveShadow>
-        <boxGeometry args={[1.28, 0.04, 1.28]} />
-        <meshStandardMaterial color="#463e33" roughness={0.4} metalness={0.2} />
+      <mesh position={[0, 0.68, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.23, 0.04, 1.23]} />
+        <meshStandardMaterial color="#edece4" roughness={0.85} />
       </mesh>
 
-      <ExhibitModel url={exhibit.modelUrl} />
+      <Suspense fallback={null}><ExhibitModel url={exhibit.modelUrl} /></Suspense>
 
       {/* Glass case */}
       <mesh position={[0, CASE_CENTER_Y, 0]}>
         <boxGeometry args={[1, CASE_H, 1]} />
         <meshPhysicalMaterial
           transparent
-          opacity={0.12}
-          roughness={0.05}
+          opacity={0.1}
+          roughness={0.12}
           metalness={0}
-          transmission={0.92}
-          thickness={0.02}
-          color="#dfeef0"
+          depthWrite={false}
+          color="#e1f1eb"
+          envMapIntensity={0.65}
         />
       </mesh>
       <CaseFrame />
-      <CaseSpotlight />
-      <Placard exhibit={exhibit} />
+      <CaseSpotlight castShadow={number <= 6} />
+      <Placard exhibit={exhibit} number={number} />
     </group>
   );
 }
@@ -193,10 +192,14 @@ function ExhibitModel({ url }: { url: string }) {
 
   const { object, scale, position } = useMemo(() => {
     const cloned = scene.clone(true);
+    cloned.traverse((child) => {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
     const box = new Box3().setFromObject(cloned);
     const size = box.getSize(new Vector3());
     const center = box.getCenter(new Vector3());
-    const s = Math.min(CASE_FIT_X / size.x, CASE_FIT_Y / size.y, CASE_FIT_Z / size.z);
+    const s = Math.min(CASE_FIT_X / Math.max(size.x, 0.001), CASE_FIT_Y / Math.max(size.y, 0.001), CASE_FIT_Z / Math.max(size.z, 0.001));
     return {
       object: cloned,
       scale: s,
@@ -209,104 +212,6 @@ function ExhibitModel({ url }: { url: string }) {
   }, [scene]);
 
   return <primitive object={object} scale={scale} position={position} />;
-}
-
-// The museum hall: polished stone floor, panelled walls with trim, corner
-// columns, and a ceiling with a soft central light cove. Walls and ceiling
-// are single-sided facing inward, so orbiting outside gives a cutaway view
-// instead of a black box.
-function MuseumRoom({ width, depth }: { width: number; depth: number }) {
-  const halfW = width / 2;
-  const halfD = depth / 2;
-
-  const walls: { pos: [number, number, number]; rotY: number; len: number }[] = [
-    { pos: [0, WALL_H / 2, -halfD], rotY: 0, len: width },
-    { pos: [0, WALL_H / 2, halfD], rotY: Math.PI, len: width },
-    { pos: [-halfW, WALL_H / 2, 0], rotY: Math.PI / 2, len: depth },
-    { pos: [halfW, WALL_H / 2, 0], rotY: -Math.PI / 2, len: depth },
-  ];
-
-  const corners: [number, number][] = [
-    [-halfW + 0.25, -halfD + 0.25],
-    [halfW - 0.25, -halfD + 0.25],
-    [-halfW + 0.25, halfD - 0.25],
-    [halfW - 0.25, halfD - 0.25],
-  ];
-
-  return (
-    <group>
-      {/* Polished stone floor */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[width, depth]} />
-        <MeshReflectorMaterial
-          blur={[220, 60]}
-          resolution={1024}
-          mixBlur={0.9}
-          mixStrength={7}
-          mirror={0.55}
-          roughness={0.6}
-          depthScale={0.6}
-          minDepthThreshold={0.4}
-          maxDepthThreshold={1.2}
-          color="#2b2620"
-          metalness={0.25}
-        />
-      </mesh>
-
-      {walls.map(({ pos, rotY, len }, i) => (
-        <group key={i} position={pos} rotation={[0, rotY, 0]}>
-          {/* Wall */}
-          <mesh receiveShadow>
-            <planeGeometry args={[len, WALL_H]} />
-            <meshStandardMaterial color={WALL} roughness={0.95} />
-          </mesh>
-          {/* Baseboard */}
-          <mesh position={[0, -WALL_H / 2 + 0.09, 0.03]}>
-            <boxGeometry args={[len, 0.18, 0.05]} />
-            <meshStandardMaterial color={DARK_TRIM} roughness={0.7} />
-          </mesh>
-          {/* Picture rail */}
-          <mesh position={[0, 0.85, 0.02]}>
-            <boxGeometry args={[len, 0.06, 0.035]} />
-            <meshStandardMaterial color="#a3947c" roughness={0.8} />
-          </mesh>
-          {/* Crown moulding */}
-          <mesh position={[0, WALL_H / 2 - 0.07, 0.035]}>
-            <boxGeometry args={[len, 0.14, 0.06]} />
-            <meshStandardMaterial color="#b5a88f" roughness={0.85} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Corner columns */}
-      {corners.map(([x, z], i) => (
-        <group key={i} position={[x, 0, z]}>
-          <mesh position={[0, 0.15, 0]} castShadow>
-            <boxGeometry args={[0.56, 0.3, 0.56]} />
-            <meshStandardMaterial color="#8f8271" roughness={0.85} />
-          </mesh>
-          <mesh position={[0, WALL_H / 2, 0]} castShadow>
-            <boxGeometry args={[0.42, WALL_H, 0.42]} />
-            <meshStandardMaterial color="#b0a48f" roughness={0.9} />
-          </mesh>
-          <mesh position={[0, WALL_H - 0.12, 0]} castShadow>
-            <boxGeometry args={[0.56, 0.24, 0.56]} />
-            <meshStandardMaterial color="#9d9080" roughness={0.85} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Ceiling with a soft central light cove */}
-      <mesh position={[0, WALL_H, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[width, depth]} />
-        <meshStandardMaterial color="#d8d1c2" roughness={1} />
-      </mesh>
-      <mesh position={[0, WALL_H - 0.015, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[width * 0.45, depth * 0.45]} />
-        <meshBasicMaterial color="#f3e9d4" toneMapped={false} />
-      </mesh>
-    </group>
-  );
 }
 
 // Full-screen overlay shown while GLB assets are downloading. useProgress
@@ -341,9 +246,9 @@ function LoadingOverlay() {
         alignItems: 'center',
         justifyContent: 'center',
         gap: '18px',
-        background: '#0e0c0a',
-        color: '#d8c9ae',
-        fontFamily: 'Georgia, "Times New Roman", serif',
+        background: '#eeeee7',
+        color: '#424b40',
+        fontFamily: 'inherit',
         opacity: active ? 1 : 0,
         transition: 'opacity 0.6s ease',
         pointerEvents: active ? 'auto' : 'none',
@@ -387,11 +292,18 @@ function LoadingOverlay() {
 }
 
 export default function Gallery({ exhibits }: GalleryProps) {
-  const count = Math.max(exhibits.length, 1);
-  const cols = Math.ceil(Math.sqrt(count));
-  const rows = Math.ceil(count / cols);
-  const roomW = Math.max(cols * SPACING + 6, 12);
-  const roomD = Math.max(rows * SPACING + 6, 10);
+  const root = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(false);
+  const [nearby, setNearby] = useState(-1);
+  const layout = useMemo(() => createGalleryLayout(exhibits.length), [exhibits.length]);
+  const input = useMemo<WalkInput>(() => ({ keys: new Set(), reset: true }), []);
+  const nearbyExhibit = exhibits[nearby];
+  const start = () => { root.current?.focus({ preventScroll: true }); setActive(true); };
+  const returnToEntrance = () => { input.keys.clear(); input.reset = true; start(); };
+  const openExhibit = useCallback((index: number) => {
+    const exhibit = exhibits[index];
+    if (exhibit) window.location.assign(exhibit.detailUrl);
+  }, [exhibits]);
 
   // Prefetch all GLBs before rendering the Canvas so navigating back lands
   // on cached models instead of hitting suspension again.
@@ -400,49 +312,142 @@ export default function Gallery({ exhibits }: GalleryProps) {
   }, [exhibits]);
 
   return (
-    <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
+    <div
+      ref={root}
+      className="museum-gallery"
+      tabIndex={0}
+      role="region"
+      aria-label="記憶のかたち・3D展示室"
+      aria-describedby="museum-help"
+      onKeyDown={(event) => {
+        if (!active && event.target === event.currentTarget && event.code === 'Enter') {
+          event.preventDefault(); start();
+        }
+      }}
+    >
       <LoadingOverlay />
       <Canvas
+        style={{ position: 'absolute', inset: 0, zIndex: 0 }}
         shadows
+        dpr={[1, 1.5]}
         frameloop="always"
-        camera={{ position: [0, 2.2, Math.min(roomD / 2 - 0.6, 6)], fov: 55 }}
+        camera={{ position: [layout.entrance.x, EYE_HEIGHT, layout.entrance.z], fov: 60, near: 0.05, far: Math.max(100, layout.depth * 2) }}
+        fallback={<p>3D表示にはWebGLが必要です。「作品目録」から各作品をご覧ください。</p>}
       >
-        <color attach="background" args={['#0e0c0a']} />
-        <ambientLight intensity={0.22} color="#fff1e0" />
+        <color attach="background" args={['#ecebe5']} />
+        <ambientLight intensity={0.65} color="#fff7ea" />
+        <hemisphereLight args={['#fffaf0', '#a2957c', 1.1]} />
         <directionalLight
-          position={[5, 9, 4]}
-          intensity={0.4}
+          position={[2, 3.4, 2]}
+          intensity={0.7}
           castShadow
           shadow-mapSize={[2048, 2048]}
           shadow-camera-left={-12}
           shadow-camera-right={12}
           shadow-camera-top={12}
           shadow-camera-bottom={-12}
+          shadow-normalBias={0.04}
         />
         {/* Locally generated environment map (no CDN fetch): a warm ceiling
             glow plus side fills, so glass and brass pick up gallery-like
             reflections even offline. */}
         <Environment resolution={128}>
-          <Lightformer intensity={2.4} position={[0, 5, 0]} rotation-x={Math.PI / 2} scale={[10, 10, 1]} color="#fff2dc" />
-          <Lightformer intensity={0.8} position={[-5, 2, 0]} rotation-y={Math.PI / 2} scale={[8, 3, 1]} color="#d8c9ae" />
-          <Lightformer intensity={0.8} position={[5, 2, 0]} rotation-y={-Math.PI / 2} scale={[8, 3, 1]} color="#d8c9ae" />
+          <Lightformer intensity={1.5} position={[0, 5, 0]} rotation-x={Math.PI / 2} scale={[10, 10, 1]} color="#fff7ec" />
+          <Lightformer intensity={0.8} position={[-5, 2, 0]} rotation-y={Math.PI / 2} scale={[8, 3, 1]} color="#edf0e7" />
+          <Lightformer intensity={0.8} position={[5, 2, 0]} rotation-y={-Math.PI / 2} scale={[8, 3, 1]} color="#edf0e7" />
         </Environment>
         <Suspense fallback={null}>
-          {exhibits.map((exhibit, i) => {
-            const x = ((i % cols) - (cols - 1) / 2) * SPACING;
-            const z = (Math.floor(i / cols) - (rows - 1) / 2) * SPACING;
-            return <Showcase key={exhibit.slug} exhibit={exhibit} position={[x, 0, z]} />;
-          })}
+          {exhibits.map((exhibit, i) => (
+            <Showcase key={exhibit.slug} exhibit={exhibit} position={layout.positions[i]} number={i + 1} />
+          ))}
         </Suspense>
-        <MuseumRoom width={roomW} depth={roomD} />
-        <OrbitControls
-          enablePan={false}
-          target={[0, 1.1, 0]}
-          minDistance={2.5}
-          maxDistance={16}
-          maxPolarAngle={Math.PI / 2.05}
+        <MuseumRoom width={layout.width} depth={layout.depth} />
+        <WalkthroughControls
+          root={root}
+          input={input}
+          layout={layout}
+          active={active}
+          onActiveChange={setActive}
+          onNearbyChange={setNearby}
+          onOpenExhibit={openExhibit}
         />
       </Canvas>
+      <div className="museum-hud">
+        <header className="museum-header">
+          <div className="museum-room-number" aria-hidden="true">01</div>
+          <div>
+            <p className="museum-eyebrow">3D MEMORY GALLERY / 収蔵展示</p>
+            <h1>記憶のかたち</h1>
+          </div>
+        </header>
+        <nav className="museum-toolbar" aria-label="展示室メニュー">
+          <button type="button" onClick={returnToEntrance}>入口に戻る</button>
+          <details>
+            <summary>作品目録 <span aria-hidden="true">＋</span></summary>
+            <div className="museum-catalog">
+              {exhibits.length === 0 && <p>ただいま展示を準備しています。</p>}
+              {exhibits.map((exhibit, i) => (
+                <a key={exhibit.slug} href={exhibit.detailUrl}>
+                  <span>{String(i + 1).padStart(2, '0')}</span>{exhibit.title}
+                </a>
+              ))}
+            </div>
+          </details>
+        </nav>
+        {!active && (
+          <section className="museum-entry" aria-label="ウォークスルーの開始">
+            <div className="museum-eyebrow">WELCOME TO THE GALLERY</div>
+            <h2>歩いて、記憶をたどる。</h2>
+            <p>静かな展示室に、あの日のかたちを。<br />作品のまわりを歩きながら、ご鑑賞ください。</p>
+            <button type="button" onClick={start}>館内を歩く <span aria-hidden="true">→</span></button>
+            <small className="museum-keyboard-hint">キーボードで移動できます。Escで一時停止。</small>
+          </section>
+        )}
+        {active && <div className="museum-crosshair" aria-hidden="true" />}
+        <div className="museum-nearby" aria-live="polite">
+          {active && nearbyExhibit && (
+            <a href={nearbyExhibit.detailUrl}><kbd className="museum-keyboard-hint">Enter</kbd> {nearbyExhibit.title} を鑑賞する ↗</a>
+          )}
+        </div>
+        {active && (
+          <div className="museum-touch" role="group" aria-label="タッチで館内を移動">
+            {[
+              ['ArrowLeft', '↶', '左を向く'], ['KeyW', '↑', '前へ歩く'], ['ArrowRight', '↷', '右を向く'],
+              ['KeyA', '←', '左へ歩く'], ['KeyS', '↓', '後ろへ歩く'], ['KeyD', '→', '右へ歩く'],
+            ].map(([code, label, description]) => (
+              <button
+                type="button" key={code} aria-label={description}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  root.current?.focus({ preventScroll: true });
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  input.keys.add(code);
+                }}
+                onPointerUp={() => input.keys.delete(code)}
+                onPointerCancel={() => input.keys.delete(code)}
+                onLostPointerCapture={() => input.keys.delete(code)}
+                onKeyDown={(event) => {
+                  if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); input.keys.add(code); }
+                }}
+                onKeyUp={() => input.keys.delete(code)}
+                onBlur={() => input.keys.delete(code)}
+              >{label}</button>
+            ))}
+          </div>
+        )}
+        <footer className="museum-footer">
+          <div className="museum-help" id="museum-help">
+            <div className="museum-help-title">館内の歩き方　／　ドラッグでも視点を動かせます</div>
+            <div className="museum-keys museum-keyboard-hint">
+              <span><kbd>W A S D</kbd> 移動</span>
+              <span><kbd>↑ ↓</kbd> 前後 <kbd>← →</kbd> 旋回</span>
+              <span><kbd>PgUp / PgDn</kbd> 見上げる・見下ろす</span>
+              <span><kbd>R</kbd> 入口 <kbd>Esc</kbd> 停止</span>
+            </div>
+          </div>
+          <div className="museum-status" role="status">{active ? '鑑賞中' : '操作停止中'}　／　{exhibits.length} 作品</div>
+        </footer>
+      </div>
     </div>
   );
 }

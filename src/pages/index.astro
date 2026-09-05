@@ -11,6 +11,8 @@ const items: ExhibitSummary[] = exhibits.map(({ id, data }) => ({
   title: data.title,
   modelUrl: `${base}/${data.model}`,
   detailUrl: `${base}/exhibits/${id}/`,
+  eventName: data.eventName,
+  capturedAt: data.capturedAt.toISOString().slice(0, 10).replaceAll('-', '.'),
 }));
 ---
 

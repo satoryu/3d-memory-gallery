@@ -1,0 +1,110 @@
+.museum-gallery {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: #eeeee7;
+  color: #333c35;
+  color-scheme: light;
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+}
+.museum-gallery:focus { outline: none; }
+.museum-gallery:focus-visible { outline: 3px solid #71836c; outline-offset: -3px; }
+.museum-gallery canvas { touch-action: none; }
+.museum-gallery button, .museum-gallery a { -webkit-tap-highlight-color: transparent; }
+.museum-gallery button { font: inherit; cursor: pointer; }
+.museum-gallery button:focus-visible, .museum-gallery a:focus-visible, .museum-gallery summary:focus-visible {
+  outline: 3px solid #647b58;
+  outline-offset: 4px;
+}
+.museum-sign-anchor { pointer-events: none !important; user-select: none; }
+.museum-wall-title { width: 620px; color: #444d43; text-align: left; backface-visibility: hidden; }
+.museum-wall-eyebrow { font-size: 13px; letter-spacing: 0.23em; }
+.museum-wall-heading { font: 56px/1.6 "Yu Mincho", "Hiragino Mincho ProN", serif; letter-spacing: 0.18em; margin-top: 24px; }
+.museum-wall-english { font: 19px Georgia, serif; letter-spacing: 0.08em; color: #737b6e; }
+.museum-wall-rule { width: 44px; height: 2px; background: #808a73; margin: 30px 0; }
+.museum-wall-title p { font-size: 16px; line-height: 2.2; letter-spacing: 0.08em; }
+.museum-wall-footnote { margin-top: 32px; font-size: 11px; letter-spacing: 0.16em; }
+.museum-exit-sign { padding: 9px 16px; background: #28794d; color: white; font-size: 26px; white-space: nowrap; backface-visibility: hidden; }
+.museum-exit-sign small { font-size: 16px; }
+.museum-placard {
+  display: flex; flex-direction: column; gap: 8px;
+  box-sizing: border-box; width: 236px; min-height: 140px; padding: 14px 18px;
+  background: #f5f4ec; color: #363d36; text-decoration: none;
+  text-align: left; backface-visibility: hidden;
+  font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+  font-size: 10px; line-height: 1.35;
+}
+.museum-placard-number { color: #727d67; font-size: 9px; letter-spacing: 0.12em; }
+.museum-placard strong { font-family: "Yu Mincho", serif; font-size: 17px; }
+.museum-placard-link { border-top: 1px solid #d3d6c8; padding-top: 8px; color: #667352; }
+.museum-hud { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.museum-header { position: absolute; top: 30px; left: 34px; display: flex; gap: 19px; align-items: center; }
+.museum-room-number { font: 38px/1 Georgia, serif; border-right: 1px solid #aab09e; padding-right: 18px; }
+.museum-header h1 { margin: 4px 0 0; font: 24px/1.5 "Yu Mincho", "Hiragino Mincho ProN", serif; letter-spacing: 0.18em; }
+.museum-eyebrow { margin: 0; font-size: 9px; letter-spacing: 0.22em; color: #59634f; }
+.museum-toolbar { position: absolute; top: 30px; right: 30px; display: flex; gap: 8px; pointer-events: auto; }
+.museum-toolbar button, .museum-toolbar summary, .museum-touch button {
+  border: 1px solid #c7cbbc; background: #f6f6efee; color: #3e483b; border-radius: 3px;
+  padding: 10px 14px; font-size: 12px; list-style: none;
+}
+.museum-toolbar summary { cursor: pointer; }
+.museum-toolbar summary::-webkit-details-marker { display: none; }
+.museum-catalog { position: absolute; top: 48px; right: 0; width: min(310px, calc(100vw - 40px)); max-height: 55vh; overflow: auto; background: #f6f6ef; border: 1px solid #c7cbbc; box-shadow: 0 8px 28px #26301d18; }
+.museum-catalog a { display: flex; gap: 18px; padding: 18px; border-bottom: 1px solid #dddfd4; font-size: 13px; text-decoration: none; }
+.museum-catalog a:hover { background: #e5e9da; }
+.museum-catalog span { color: #7b856d; }
+.museum-entry {
+  position: absolute; left: 32px; bottom: 114px; width: min(310px, calc(100vw - 100px));
+  padding: 25px 27px; background: #f8f8f0f0; border: 1px solid #d2d5c5;
+  border-radius: 3px; box-shadow: 0 10px 40px #363b2310; pointer-events: auto;
+}
+.museum-entry h2 { font: 23px "Yu Mincho", serif; margin: 12px 0; letter-spacing: 0.08em; }
+.museum-entry p { font-size: 12px; line-height: 1.9; color: #616956; }
+.museum-entry button { padding: 12px 20px; margin-top: 6px; background: #46583d; color: #fff; border: none; border-radius: 2px; font-size: 13px; }
+.museum-entry small { display: block; margin-top: 13px; color: #737b69; font-size: 10px; }
+.museum-footer { position: absolute; left: 32px; right: 32px; bottom: 24px; display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+.museum-help { padding: 14px 18px; background: #f6f6efeF; border: 1px solid #c7cbbc; border-radius: 3px; }
+.museum-help-title { font-size: 10px; letter-spacing: 0.12em; color: #66735c; margin-bottom: 10px; }
+.museum-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 18px; font-size: 11px; }
+.museum-keys span { white-space: nowrap; }
+.museum-keys kbd, .museum-nearby kbd { font-family: inherit; font-size: 10px; line-height: 1.5; padding: 2px 4px; border: 1px solid #c4cbbb; border-radius: 2px; margin-right: 3px; }
+.museum-status { font-size: 10px; letter-spacing: 0.1em; padding: 8px 12px; background: #f6f6efe8; border-radius: 2px; white-space: nowrap; }
+.museum-status::before { content: ''; display: inline-block; width: 5px; height: 5px; margin-right: 8px; border-radius: 50%; background: #768768; }
+.museum-nearby { position: absolute; top: 110px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 40px); pointer-events: auto; }
+.museum-nearby a { display: block; padding: 13px 20px; background: #f7f8efed; border: 1px solid #b1bba4; border-radius: 3px; font-size: 13px; text-decoration: none; }
+.museum-crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; border: 1px solid #fff9; border-radius: 50%; background: #424d3977; transform: translate(-50%, -50%); }
+.museum-touch { display: none; position: absolute; right: 20px; bottom: 128px; pointer-events: auto; gap: 6px; grid-template-columns: repeat(3, 44px); }
+.museum-touch button { width: 44px; height: 44px; padding: 0; touch-action: none; user-select: none; }
+.museum-touch button:active { background: #dde5d3; }
+@media (max-width: 720px) {
+  .museum-header { top: 20px; left: 20px; gap: 12px; }
+  .museum-room-number { font-size: 28px; padding-right: 12px; }
+  .museum-header h1 { font-size: 19px; }
+  .museum-eyebrow { font-size: 8px; letter-spacing: 0.1em; }
+  .museum-toolbar { top: 91px; right: 20px; }
+  .museum-toolbar button, .museum-toolbar summary { padding: 9px 11px; }
+  .museum-footer { left: 16px; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); }
+  .museum-status { display: none; }
+  .museum-help { padding: 12px; }
+  .museum-keys { gap: 8px 12px; font-size: 10px; }
+  .museum-entry { left: 20px; bottom: 130px; padding: 20px; }
+  .museum-nearby { top: 147px; }
+}
+@media (max-height: 540px) {
+  .museum-entry { bottom: 100px; padding: 12px 20px; }
+  .museum-entry h2 { margin: 6px 0; font-size: 20px; }
+  .museum-entry p, .museum-entry small { display: none; }
+  .museum-header { top: 12px; }
+  .museum-toolbar { top: 16px; }
+}
+/* Include large landscape tablets through their primary touch pointer. */
+@media (max-width: 1024px), (pointer: coarse) {
+  .museum-gallery .museum-keyboard-hint { display: none; }
+  .museum-help-title { margin-bottom: 0; }
+  .museum-touch { display: grid; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .museum-gallery * { animation: none !important; transition: none !important; }
+}
